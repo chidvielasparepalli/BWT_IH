@@ -1,0 +1,6 @@
+{
+  "name":"harvestlink-mongodb-api","private":true,"version":"1.0.0","type":"module","engines":{"node":">=22"},
+  "scripts":{"dev":"node --watch index.js","start":"node index.js","check":"node --check index.js && node --check security.js && node --check scripts/provision-admin.js && node --check scripts/ping-mongodb.js","test:connection":"node scripts/ping-mongodb.js","provision:admin":"node scripts/provision-admin.js"},
+  "overrides":{"uuid":"^11.1.1"},
+  "dependencies":{"cors":"^2.8.5","dotenv":"^16.4.7","express":"^5.1.0","helmet":"^8.1.0","mongodb":"^6.20.0"}
+}

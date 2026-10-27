@@ -1,0 +1,31 @@
+# Dependencies and generated builds
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+coverage/
+*.tsbuildinfo
+
+# Environment variables, secrets and local backups
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+.env.backup-*
+*.local
+*.pem
+*.key
+service-account*.json
+credentials*.json
+
+# Logs and local platform state
+*.log
+.firebase/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Legacy Firebase build output (the active app uses MongoDB API)
+functions/lib/

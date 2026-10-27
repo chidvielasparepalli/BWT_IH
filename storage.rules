@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function farmerOrAdmin() {
+      return request.auth != null && (
+        request.auth.token.role in ['farmer', 'admin']
+        || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['farmer', 'admin']
+      );
+    }
+    match /products/{ownerId}/{fileName} {
+      allow read: if true;
+      // The server writes the role claim after verifying a user's MongoDB-backed role.
+      // Uploads remain constrained to the signed-in user's namespace, size and image MIME types.
+      allow create, update: if request.auth != null
+        && request.auth.uid == ownerId
+        && farmerOrAdmin()
+        && request.resource.size < 6 * 1024 * 1024
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'];
+      allow delete: if request.auth != null
+        && request.auth.uid == ownerId
+        && farmerOrAdmin();
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

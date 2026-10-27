@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function userDoc(uid) { return get(/databases/$(database)/documents/users/$(uid)); }
+    function hasRole(roleName) { return signedIn() && userDoc(request.auth.uid).data.role == roleName; }
+    function isAdmin() { return hasRole('admin'); }
+    function isFarmer() { return hasRole('farmer'); }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      // Self-registration can only create buyer/farmer accounts; admin role is provisioned out-of-band.
+      allow create: if isSelf(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.role in ['buyer', 'farmer']
+        && request.resource.data.email == request.auth.token.email;
+      allow update: if isSelf(uid)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'location', 'buyerType', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /farmerProfiles/{uid} {
+      allow read: if true;
+      allow create, update: if isSelf(uid) && isFarmer()
+        && request.resource.data.keys().hasOnly(['farmName', 'location', 'description', 'createdAt', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /products/{productId} {
+      allow read: if (resource.data.isActive == true && resource.data.isDeleted == false)
+        || (signedIn() && resource.data.farmerId == request.auth.uid)
+        || isAdmin();
+      // Critical listing and stock mutations are performed by trusted Cloud Functions.
+      allow create, update, delete: if false;
+    }
+
+    match /orders/{orderId} {
+      allow read: if signedIn()
+        && (resource.data.buyerId == request.auth.uid || resource.data.farmerId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+
+      match /items/{itemId} {
+        allow read: if signedIn() && (
+          get(/databases/$(database)/documents/orders/$(orderId)).data.buyerId == request.auth.uid
+          || get(/databases/$(database)/documents/orders/$(orderId)).data.farmerId == request.auth.uid
+          || isAdmin()
+        );
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /moderationLogs/{logId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
